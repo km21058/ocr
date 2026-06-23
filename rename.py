@@ -11,7 +11,7 @@ def rename_files(folder_path):
     """
     for index, filename in enumerate(sorted_file_list):
         # Create the new filename by removing numbers and underscores
-        new_filename = 30000 + index
+        new_filename =  1 + index
         
         # Get the full path of the old and new filenames
         old_file_path = os.path.join(folder_path, filename)
@@ -21,5 +21,5 @@ def rename_files(folder_path):
         os.rename(old_file_path, new_file_path)
     
 if __name__ == "__main__":
-    folder_path = "./image"  # Replace with the actual path to your folder
+    folder_path = "./image/1-400"  # Replace with the actual path to your folder
     rename_files(folder_path)
