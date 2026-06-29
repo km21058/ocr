@@ -21,5 +21,5 @@ def rename_files(folder_path):
         os.rename(old_file_path, new_file_path)
     
 if __name__ == "__main__":
-    folder_path = "./image/1-400"  # Replace with the actual path to your folder
+    folder_path = "./image/NewData"  # Replace with the actual path to your folder
     rename_files(folder_path)
