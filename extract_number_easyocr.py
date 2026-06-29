@@ -7,7 +7,7 @@ EasyOCR（PyTorchベースのOCRエンジン）を使用。
 処理フロー:
   1. PDF の場合は PyMuPDF で画像に変換
   2. OpenCV で画像左上をクロップ（大雑把な位置）
-  3. HSVカラーフィルタで青（シアン〜ブルー）以外の黒・赤を白色化して除去
+  3. HSVカラーフィルタで青（シアン〜ブルー）と黒以外の赤を白色化して除去
   4. ハフ変換による枠線検出＋インペイントで青枠線を消去
   5. 消去後のクリーンなカラー画像を EasyOCR に入力して数字を検出・認識
   6. 認識した番号をファイル名にして保存
@@ -75,9 +75,9 @@ def crop_top_left(image_path: str,
     cropped = img[y1:y2, x1:x2]
     return cropped
 
-def keep_only_blue(cropped_img):
+def keep_blue_and_black(cropped_img):
     """
-    HSV色空間を用いて、青系（シアン〜ブルー）以外の色をすべて白色で塗りつぶす（赤系と黒系を抜く）
+    HSV色空間を用いて、青系（シアン〜ブルー）と黒系以外の色をすべて白色で塗りつぶす（赤系を抜く）
     """
     hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
@@ -85,9 +85,13 @@ def keep_only_blue(cropped_img):
     # 青系（シアン〜ブルー）の範囲を定義 (H:75-145, S:35-255, V:50-255)
     is_blue = (h >= 75) & (h <= 145) & (s >= 35) & (v >= 50)
     
-    # 青系以外の色（黒系・赤系・白に近い背景色などすべて）を白色 [255, 255, 255] に置き換える
+    # 黒系の範囲を定義 (明度Vが低いピクセル)
+    is_black = (v < 100)
+    
+    # 青系・黒系以外の色（赤系・白に近い背景色など）を白色 [255, 255, 255] に置き換える
+    keep_mask = is_blue | is_black
     filtered_img = np.ones_like(cropped_img) * 255
-    filtered_img[is_blue] = cropped_img[is_blue]
+    filtered_img[keep_mask] = cropped_img[keep_mask]
     
     return filtered_img
 
@@ -124,7 +128,7 @@ def extract_number(image_path: str, reader, debug_dir: Path | None = None) -> st
     cropped = crop_top_left(image_path)
     
     # 2. 青以外（黒・赤など）を除去するカラーフィルタ適用
-    filtered = keep_only_blue(cropped)
+    filtered = keep_blue_and_black(cropped)
     
     # 3. ハフ変換による枠線除去
     inpainted = remove_borders_hough(filtered)

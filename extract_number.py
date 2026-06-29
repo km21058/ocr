@@ -168,9 +168,9 @@ def crop_top_left(img: np.ndarray,
     cropped = img[y1:y2, x1:x2]
     return cropped
 
-def keep_only_blue(cropped_img):
+def keep_blue_and_black(cropped_img):
     """
-    HSV色空間を用いて、青系（シアン〜ブルー）以外の色をすべて白色で塗りつぶす（赤系と黒系を抜く）
+    HSV色空間を用いて、青系（シアン〜ブルー）と黒系以外の色をすべて白色で塗りつぶす（赤系を抜く）
     """
     hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
@@ -178,9 +178,13 @@ def keep_only_blue(cropped_img):
     # 青系（シアン〜ブルー）の範囲を定義 (H:75-145, S:35-255, V:50-255)
     is_blue = (h >= 75) & (h <= 145) & (s >= 35) & (v >= 50)
     
-    # 青系以外の色（黒系・赤系・白に近い背景色などすべて）を白色 [255, 255, 255] に置き換える
+    # 黒系の範囲を定義 (明度Vが低いピクセル)
+    is_black = (v < 100)
+    
+    # 青系・黒系以外の色（赤系・白に近い背景色など）を白色 [255, 255, 255] に置き換える
+    keep_mask = is_blue | is_black
     filtered_img = np.ones_like(cropped_img) * 255
-    filtered_img[is_blue] = cropped_img[is_blue]
+    filtered_img[keep_mask] = cropped_img[keep_mask]
     
     return filtered_img
 
@@ -194,8 +198,8 @@ def extract_digit_regions(cropped_img, debug_dir: Path | None = None,
     二値化画像からマスクを直接 subtract することで枠線を除去し、
     個々の数字の領域を検出してクロップする。
     """
-    # 青系以外の色（黒系・赤系）をカラーフィルタで白色に塗りつぶす
-    filtered_img = keep_only_blue(cropped_img)
+    # 青系・黒系以外の色（赤系など）をカラーフィルタで白色に塗りつぶす
+    filtered_img = keep_blue_and_black(cropped_img)
     
     gray = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
@@ -837,6 +841,8 @@ def main():
                         help="保存先フォルダ（デフォルト: ./output）")
     parser.add_argument("--template", type=str, default=None,
                         help="空欄カードのPDFテンプレート（背景差分用）")
+    parser.add_argument("--debug", type=str, default=None,
+                        help="testケースの実行")
     args = parser.parse_args()
     delete_output_folder(args.output_dir)  # 出力フォルダを削除してから処理を開始
     # 処理対象のファイル一覧を構築

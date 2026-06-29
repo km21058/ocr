@@ -69,22 +69,24 @@ def _find_fonts():
 
 FONT_DIR, FONT_FILES = _find_fonts()
 
-def keep_only_blue(cropped_img):
+def keep_blue_and_black(cropped_img):
     """
-    HSV色空間を用いて、青系（シアン〜ブルー）以外の色をすべて白色で塗りつぶす（赤系と黒系を抜く）
+    HSV色空間を用いて、青系（シアン〜ブルー）と黒系以外の色をすべて白色で塗りつぶす（赤系を抜く）
     """
     hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     is_blue = (h >= 75) & (h <= 145) & (s >= 35) & (v >= 50)
+    is_black = (v < 100)
+    keep_mask = is_blue | is_black
     filtered_img = np.ones_like(cropped_img) * 255
-    filtered_img[is_blue] = cropped_img[is_blue]
+    filtered_img[keep_mask] = cropped_img[keep_mask]
     return filtered_img
 
 def generate_synthetic_digit(digit: int, font_path: str, size: int = 40, damage_level: str = "none") -> np.ndarray:
     """
     Pipeline-Consistent Rendering:
     1. Render a blue digit on a white background.
-    2. Apply keep_only_blue filter.
+    2. Apply keep_blue_and_black filter.
     3. Apply Gaussian blur & adaptive threshold.
     4. Apply Hough mask subtraction simulation (if damage_level != 'none').
     5. Crop, pad, and resize to 28x28.
@@ -120,8 +122,8 @@ def generate_synthetic_digit(digit: int, font_path: str, size: int = 40, damage_
     matrix = cv2.getRotationMatrix2D((canvas_size // 2, canvas_size // 2), angle, 1.0)
     np_img_bgr = cv2.warpAffine(np_img_bgr, matrix, (canvas_size, canvas_size), borderValue=(255, 255, 255))
     
-    # 2. keep_only_blue
-    filtered = keep_only_blue(np_img_bgr)
+    # 2. keep_blue_and_black
+    filtered = keep_blue_and_black(np_img_bgr)
     gray = cv2.cvtColor(filtered, cv2.COLOR_BGR2GRAY)
     
     # 3. adaptiveThreshold (二値化)

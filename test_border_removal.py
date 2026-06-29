@@ -29,22 +29,26 @@ def crop_top_left(img):
     y1, y2 = int(h * 0.04), int(h * 0.25)
     return img[y1:y2, x1:x2]
 
-def keep_only_blue(cropped_img):
+def keep_blue_and_black(cropped_img):
     """
-    HSV色空間を用いて、青系（シアン〜ブルー）以外の色をすべて白色で塗りつぶす
+    HSV色空間を用いて、青系（シアン〜ブルー）と黒系以外の色をすべて白色で塗りつぶす
     """
     hsv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     
     # 青系（シアン〜ブルー）の範囲を定義
-    # H: 75〜140 (シアン〜ブルー)
+    # H: 75〜145 (シアン〜ブルー)
     # S: 35〜255 (ある程度の鮮やかさ。滲みも考慮して少し低めからカバー)
     # V: 50〜255 (ある程度の明るさ)
     is_blue = (h >= 75) & (h <= 145) & (s >= 35) & (v >= 50)
     
-    # 白ベースの画像を作成し、青いピクセルだけをコピーする
+    # 黒系の範囲を定義 (明度Vが低いピクセル)
+    is_black = (v < 100)
+    
+    # 白ベースの画像を作成し、青・黒のピクセルだけをコピーする
+    keep_mask = is_blue | is_black
     filtered_img = np.ones_like(cropped_img) * 255
-    filtered_img[is_blue] = cropped_img[is_blue]
+    filtered_img[keep_mask] = cropped_img[keep_mask]
     
     return filtered_img
 
@@ -282,7 +286,7 @@ def main():
         cv2.imwrite(str(DEBUG_DIR / f"{stem}_1_cropped.png"), cropped)
         
         # カラーフィルタ (青系以外の色を除去)
-        filtered = keep_only_blue(cropped)
+        filtered = keep_blue_and_black(cropped)
         cv2.imwrite(str(DEBUG_DIR / f"{stem}_1b_color_filtered.png"), filtered)
         
         # アルゴリズム1: ハフ変換（直線検出）による除去 (カラーフィルタ適用後の画像を使用)
